@@ -21,20 +21,20 @@ y = df['quality']
 correlations = df.corr()['quality'].drop('quality')
 
 # feature selection
-top_features = correlations.abs().sort_values(ascending=False).head(4).index.tolist()
-print(f"Selected Features based on correlation: {top_features}")
-X_processed = X[top_features]
+# top_features = correlations.abs().sort_values(ascending=False).head(4).index.tolist()
+# print(f"Selected Features based on correlation: {top_features}")
+# X_processed = X[top_features]
 
-scaler = StandardScaler()
-X_processed = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
-# mm_scaler = MinMaxScaler()
-# X_processed = pd.DataFrame(mm_scaler.fit_transform(X), columns=X.columns)
+# scaler = StandardScaler()
+# X_processed = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
+mm_scaler = MinMaxScaler()
+X_processed = pd.DataFrame(mm_scaler.fit_transform(X), columns=X.columns)
 
 # 3. Train the model
 X_train, X_test, y_train, y_test = train_test_split(X_processed, y, test_size=0.2, random_state=42)
 
-model = Ridge(alpha=12)
-# model = RandomForestRegressor(n_estimators=100, random_state=42)
+# model = Ridge(alpha=12)
+model = RandomForestRegressor(n_estimators=100, random_state=42)
 model.fit(X_train, y_train)
 
 # 4. Evaluate the model
