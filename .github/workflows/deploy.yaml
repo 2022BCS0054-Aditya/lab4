@@ -80,10 +80,10 @@ jobs:
         if: steps.compare.outputs.better == '1'
         run: |
           # Tagging with unique run number and latest
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/wine_predict_2022BCS0054:${{ github.run_number }} .
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/wine_predict_2022BCS0054:latest .
-          docker push ${{ secrets.DOCKER_USERNAME }}/wine_predict_2022BCS0054:${{ github.run_number }}
-          docker push ${{ secrets.DOCKER_USERNAME }}/wine_predict_2022BCS0054:latest
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/wine_predict_2022bcs054_lab4:${{ github.run_number }} .
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/wine_predict_2022bcs054_lab4:latest .
+          docker push ${{ secrets.DOCKER_USERNAME }}/wine_predict_2022bcs054_lab4:${{ github.run_number }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/wine_predict_2022bcs054_lab4:latest
 
       - name: Update Baseline Variables
         if: steps.compare.outputs.better == '1'
