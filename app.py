@@ -10,7 +10,7 @@ app = FastAPI()
 
 model_path = os.path.join(os.getcwd(), "outputs", "model.pkl")
 
-with open("model.pkl", "rb") as f:
+with open(model_path, "rb") as f:
     model = pickle.load(f)
 
 class WineFeatures(BaseModel):
