@@ -55,6 +55,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: model-artifacts
+          path: ./outputs  # Ensure this matches Dockerfile expectation
 
       - name: Compare Metrics
         id: compare
