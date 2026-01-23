@@ -34,7 +34,7 @@ X_processed = pd.DataFrame(mm_scaler.fit_transform(X), columns=X.columns)
 X_train, X_test, y_train, y_test = train_test_split(X_processed, y, test_size=0.2, random_state=42)
 
 # model = Ridge(alpha=12)
-model = RandomForestRegressor(n_estimators=130, random_state=42)
+model = RandomForestRegressor(n_estimators=120, random_state=42)
 model.fit(X_train, y_train)
 
 # 4. Evaluate the model
