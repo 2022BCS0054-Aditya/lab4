@@ -34,7 +34,6 @@ pipeline {
             }
         }
         stage('Send Valid Inference Request') { // Stage 4 
-        stage('Send Valid Inference Request') { 
             steps {
                 sh '''
                     echo "Testing Valid Input..."
