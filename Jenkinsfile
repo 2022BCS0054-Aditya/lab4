@@ -1,7 +1,6 @@
 pipeline {
     agent any
     environment {
-        // Replace with your actual Docker Hub username
         DOCKER_USER = '2022bcs0054aditya' 
         IMAGE_NAME = "${DOCKER_USER}/wine_predict_2022bcs054_lab4:latest"
         CONTAINER_NAME = "inference-validator-2022bcs0054"
@@ -9,12 +8,12 @@ pipeline {
     stages {
         stage('Pull Image') { // Stage 1
             steps {
-                sh "docker pull ${IMAGE_NAME}"
+                sh "docker pull ${IMAGE_NAME}" // [cite: 179, 180]
             }
         }
         stage('Run Container') { // Stage 2
             steps {
-                // Mapping to 8001 to avoid conflicts with Jenkins on 8080
+                // Mapping to 8001 as required [cite: 182, 183]
                 sh "docker run -d -p 8001:8001 --name ${CONTAINER_NAME} ${IMAGE_NAME}"
             }
         }
@@ -26,7 +25,7 @@ pipeline {
                             echo "Waiting for API..."
                             sleep 3
                         done
-                    '''
+                    ''' // [cite: 185, 186]
                 }
             }
         }
@@ -38,10 +37,9 @@ pipeline {
                         -H "Content-Type: application/json" \
                         -d @test_inputs/valid_input.json) 
                     
-                    echo "Response: $RESPONSE"
+                    echo "Response: $RESPONSE" // 
                     
-                    # Validation logic
-                    echo $RESPONSE | jq -e '.wine_quality'
+                    # Validation logic [cite: 191, 192, 193]
                     echo $RESPONSE | jq -e '.wine_quality' | grep -E '^[0-9]+$'
                 '''
             }
@@ -50,15 +48,14 @@ pipeline {
             steps {
                 sh '''
                     echo "Testing Invalid Input..."
-                    # We expect a 422 Unprocessable Entity or similar error from FastAPI
                     HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8001/predict \
                         -H "Content-Type: application/json" \
                         -d @test_inputs/invalid_input.json)
                     
-                    echo "HTTP Status Received: $HTTP_STATUS"
+                    echo "HTTP Status Received: $HTTP_STATUS" // 
                     
                     if [ "$HTTP_STATUS" -ge 400 ]; then
-                        echo "Success: API correctly rejected invalid input."
+                        echo "Success: API correctly rejected invalid input." // [cite: 196]
                     else
                         echo "Failure: API accepted invalid input with status $HTTP_STATUS"
                         exit 1
@@ -69,17 +66,14 @@ pipeline {
     }
     post {
         always {
-            stage('Stop Container') { // Stage 6
-                steps {
-                    sh "docker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}"
-                }
-            }
+            // Stage 6: Stop and remove container 
+            sh "docker stop ${CONTAINER_NAME} || true && docker rm ${CONTAINER_NAME} || true"
         }
         success {
-            echo "Pipeline Result: PASS - All validations completed."
+            echo "Pipeline Result: PASS" // [cite: 202, 209]
         }
         failure {
-            echo "Pipeline Result: FAIL - Validation check failed."
+            echo "Pipeline Result: FAIL" // [cite: 202, 209]
         }
     }
 }
