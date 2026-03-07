@@ -14,27 +14,22 @@ pipeline {
         stage('Run Container') { // Stage 2
             steps {
                 // Mapping to 8001 as required
-                sh "docker run -d -p 8001:8001 --name ${CONTAINER_NAME} ${IMAGE_NAME}"
+                // We add --network bridge to ensure it is on the standard network
+                sh "docker run -d -p 8001:8001 --network bridge --name ${CONTAINER_NAME} ${IMAGE_NAME}"
             }
         }
-        stage('Wait for Service') { // Stage 3
+        stage('Wait for Service Readiness') { // Stage 3
             steps {
-                script {
-                    try {
-                        timeout(time: 1, unit: 'MINUTES') { // 
-                            sh '''
-                                until curl -s http://localhost:8001/health > /dev/null; do 
-                                    echo "Waiting for API..."
-                                    docker logs --tail 5 inference-validator-2022bcs0054
-                                    sleep 5
-                                done
-                            '''
-                        }
-                    } catch (Exception e) {
-                        echo "--- API FAILED TO START. PRINTING FULL LOGS ---"
-                        sh "docker logs inference-validator-2022bcs0054"
-                        error("Service readiness check failed.")
-                    }
+                timeout(time: 1, unit: 'MINUTES') {
+                    sh '''
+                        # Try both localhost and the Docker Gateway IP
+                        until curl -s -f http://172.17.0.1:8001/health > /dev/null || curl -s -f http://localhost:8001/health > /dev/null; do 
+                            echo "Waiting for API at http://172.17.0.1:8001/health..."
+                            docker logs --tail 5 inference-validator-2022bcs0054
+                            sleep 5
+                        done
+                        echo "API is Ready!"
+                    '''
                 }
             }
         }
@@ -42,7 +37,7 @@ pipeline {
             steps {
                 sh '''
                     echo "Testing Valid Input..."
-                    RESPONSE=$(curl -s -X POST http://localhost:8001/predict \
+                    RESPONSE=$(curl -s -X POST http://172.17.0.1:8001/predict \
                         -H "Content-Type: application/json" \
                         -d @test_inputs/valid_input.json) 
                     
@@ -57,7 +52,7 @@ pipeline {
             steps {
                 sh '''
                     echo "Testing Invalid Input..."
-                    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8001/predict \
+                    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://172.17.0.1:8001/predict \
                         -H "Content-Type: application/json" \
                         -d @test_inputs/invalid_input.json)
                     
