@@ -1,83 +1,81 @@
 pipeline {
     agent any
     environment {
-        DOCKER_USER = '2022bcs0054aditya' 
-        IMAGE_NAME = "${DOCKER_USER}/wine_predict_2022bcs054_lab4:latest"
-        CONTAINER_NAME = "inference-validator-2022bcs0054"
+        DOCKER_USER = '2022bcs0054aditya'
+        ROLL_NO = '2022BCS0054'
+        IMAGE_NAME = "${DOCKER_USER}/wine_predict_2022bcs054_lab4"
     }
     stages {
-        stage('Pull Image') { // Stage 1
+        stage('Checkout') { // Stage 1
             steps {
-                sh "docker pull ${IMAGE_NAME}"
+                checkout scm
             }
         }
-        stage('Run Container') { // Stage 2
+        stage('Setup Environment') { // Stage 2
             steps {
-                // Mapping to 8001 as required
-                // We add --network bridge to ensure it is on the standard network
-                sh "docker run -d -p 8001:8001 --network bridge --name ${CONTAINER_NAME} ${IMAGE_NAME}"
+                sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install -r requirements.txt
+                '''
             }
         }
-        stage('Wait for Service Readiness') { // Stage 3
+        stage('Train Model') { 
             steps {
-                timeout(time: 1, unit: 'MINUTES') {
-                    sh '''
-                        # Try both localhost and the Docker Gateway IP
-                        until curl -s -f http://172.17.0.1:8001/health > /dev/null || curl -s -f http://localhost:8001/health > /dev/null; do 
-                            echo "Waiting for API at http://172.17.0.1:8001/health..."
-                            docker logs --tail 5 inference-validator-2022bcs0054
-                            sleep 5
-                        done
-                        echo "API is Ready!"
-                    '''
+                sh '''
+                    . venv/bin/activate
+                    python train.py
+                '''
+            }
+        }
+        stage('Read Accuracy') { // Stage 4 [cite: 109]
+            steps {
+                script {
+                    // Extract r2_score (accuracy) from metrics.json 
+                    def metrics = readJSON file: 'outputs/results.json'
+                    env.NEW_ACCURACY = metrics.r2_score
+                } 
+            }
+        }
+        stage('Compare Accuracy') { // Stage 5
+            steps {
+                withCredentials([string(credentialsId: 'best-accuracy', variable: 'BEST_ACC')]) {
+                    script {
+                        // Compare current against baseline
+                        def isBetter = (env.NEW_ACCURACY.toFloat() > BEST_ACC.toFloat())
+                        env.BETTER = isBetter ? 'true' : 'false'
+                        
+                        if (env.BETTER == 'false') {
+                            echo "${ROLL_NO}:----Metric did not improve"
+                        }
+                    }
                 }
             }
         }
-        stage('Send Valid Inference Request') { // Stage 4 
+        stage('Build Docker Image') { // Stage 6
+            when { environment name: 'BETTER', value: 'true' } // Conditional
             steps {
-                sh '''
-                    echo "Testing Valid Input..."
-                    RESPONSE=$(curl -s -X POST http://172.17.0.1:8001/predict \
-                        -H "Content-Type: application/json" \
-                        -d @test_inputs/valid_input.json) 
-                    
-                    echo "Response: $RESPONSE" // 
-                    
-                    # Validation logic
-                    echo $RESPONSE | jq -e '.wine_quality' | grep -E '^[0-9]+$'
-                '''
+                script {
+                    // Build using Docker Hub credentials
+                    sh "docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} -t ${IMAGE_NAME}:latest ."
+                }
             }
         }
-        stage('Send Invalid Request') { // Stage 5
+        stage('Push Docker Image') { // Stage 7
+            when { environment name: 'BETTER', value: 'true' } // Conditional 
             steps {
-                sh '''
-                    echo "Testing Invalid Input..."
-                    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://172.17.0.1:8001/predict \
-                        -H "Content-Type: application/json" \
-                        -d @test_inputs/invalid_input.json)
-                    
-                    echo "HTTP Status Received: $HTTP_STATUS" // 
-                    
-                    if [ "$HTTP_STATUS" -ge 400 ]; then
-                        echo "Success: API correctly rejected invalid input."
-                    else
-                        echo "Failure: API accepted invalid input with status $HTTP_STATUS"
-                        exit 1
-                    fi
-                '''
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                    sh "echo ${PASS} | docker login -u ${USER} --password-stdin"
+                    sh "docker push ${IMAGE_NAME}:${BUILD_NUMBER}"
+                    sh "docker push ${IMAGE_NAME}:latest" 
+                }
             }
         }
     }
     post {
         always {
-            // Stage 6: Stop and remove container 
-            sh "docker stop ${CONTAINER_NAME} || true && docker rm ${CONTAINER_NAME} || true"
-        }
-        success {
-            echo "Pipeline Result: PASS"
-        }
-        failure {
-            echo "Pipeline Result: FAIL"
+            // Task 5: Archive artifacts regardless of success/failure [cite: 122, 123]
+            archiveArtifacts artifacts: 'outputs/**', fingerprint: true // [cite: 124, 125]
         }
     }
 }
