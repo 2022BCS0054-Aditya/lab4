@@ -34,6 +34,7 @@ pipeline {
             }
         }
         stage('Send Valid Inference Request') { // Stage 4 
+        stage('Send Valid Inference Request') { 
             steps {
                 sh '''
                     echo "Testing Valid Input..."
@@ -41,10 +42,11 @@ pipeline {
                         -H "Content-Type: application/json" \
                         -d @test_inputs/valid_input.json) 
                     
-                    echo "Response: $RESPONSE" // 
+                    echo "Response: $RESPONSE"
                     
-                    # Validation logic
-                    echo $RESPONSE | jq -e '.wine_quality' | grep -E '^[0-9]+$'
+                    # Check if wine_quality exists and is a valid decimal number
+                    echo $RESPONSE | jq -e '.wine_quality' | grep -E '^[0-9]+([.][0-9]+)?$'
+                    echo "Validation Check: PASS"
                 '''
             }
         }
@@ -56,12 +58,12 @@ pipeline {
                         -H "Content-Type: application/json" \
                         -d @test_inputs/invalid_input.json)
                     
-                    echo "HTTP Status Received: $HTTP_STATUS" // 
+                    echo "HTTP Status Received: $HTTP_STATUS"
                     
                     if [ "$HTTP_STATUS" -ge 400 ]; then
                         echo "Success: API correctly rejected invalid input."
                     else
-                        echo "Failure: API accepted invalid input with status $HTTP_STATUS"
+                        echo "Failure: API accepted invalid input."
                         exit 1
                     fi
                 '''
