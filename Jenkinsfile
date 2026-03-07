@@ -19,13 +19,22 @@ pipeline {
         }
         stage('Wait for Service') { // Stage 3
             steps {
-                timeout(time: 1, unit: 'MINUTES') {
-                    sh '''
-                        until curl -s http://localhost:8001/predict > /dev/null; do 
-                            echo "Waiting for API..."
-                            sleep 3
-                        done
-                    ''' 
+                script {
+                    try {
+                        timeout(time: 1, unit: 'MINUTES') { // 
+                            sh '''
+                                until curl -s http://localhost:8001/predict > /dev/null; do 
+                                    echo "Waiting for API..."
+                                    docker logs --tail 5 inference-validator-2022bcs0054
+                                    sleep 5
+                                done
+                            '''
+                        }
+                    } catch (Exception e) {
+                        echo "--- API FAILED TO START. PRINTING FULL LOGS ---"
+                        sh "docker logs inference-validator-2022bcs0054"
+                        error("Service readiness check failed.")
+                    }
                 }
             }
         }
