@@ -30,6 +30,10 @@ class WineFeatures(BaseModel):
 def read_root():
     return RedirectResponse(url="/docs")
 
+@app.get("/health")
+def health_check():
+    return {"status": "online"}
+
 @app.post("/predict")
 def predict(data: WineFeatures):
     data_dict =data.model_dump()

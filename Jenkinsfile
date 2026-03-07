@@ -23,7 +23,7 @@ pipeline {
                     try {
                         timeout(time: 1, unit: 'MINUTES') { // 
                             sh '''
-                                until curl -s http://localhost:8001/predict > /dev/null; do 
+                                until curl -s http://localhost:8001/health > /dev/null; do 
                                     echo "Waiting for API..."
                                     docker logs --tail 5 inference-validator-2022bcs0054
                                     sleep 5
